@@ -1,0 +1,12 @@
+--- protobuf-c-1.3.2/protoc-c/c_message.cc.orig	2020-07-01 12:22:04.581253327 +0200
++++ protobuf-c-1.3.2/protoc-c/c_message.cc	2020-07-01 12:22:07.409188894 +0200
+@@ -228,6 +228,9 @@ GenerateStructDefinition(io::Printer* pr
+     if (field->has_default_value()) {
+       field_generators_.get(field).GenerateDefaultValueDeclarations(printer);
+     }
++    vars["fieldname"] = FullNameToUpper(field->name());
++    vars["fieldnum"] = SimpleItoa(field->number());
++    printer->Print(vars, "#define $ucclassname$__$fieldname$__FIELD_NUMBER $fieldnum$\n");
+   }
+ 
+   printer->Print(vars, "#define $ucclassname$__INIT \\\n"
