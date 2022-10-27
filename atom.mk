@@ -9,10 +9,7 @@ LOCAL_HOST_MODULE := protobuf-c
 LOCAL_DESCRIPTION := Protocol Buffers implementation in C
 LOCAL_CATEGORY_PATH := libs
 
-# Use built-in protobuf on windows
-ifneq ("$(HOST_OS)","windows")
-  LOCAL_PUBLIC_LIBRARIES := host.protobuf
-endif
+LOCAL_PUBLIC_LIBRARIES := host.protobuf
 
 LOCAL_AUTOTOOLS_VERSION := 1.3.2
 LOCAL_AUTOTOOLS_ARCHIVE := $(LOCAL_HOST_MODULE)-$(LOCAL_AUTOTOOLS_VERSION).tar.gz
@@ -125,16 +122,8 @@ $$(protoc_c_done_file): PRIVATE_PROTO_PATH := $$(protoc_c_proto_path)
 $$(protoc_c_done_file): PRIVATE_PROTO_SRC_FILES := $$(protoc_c_src_files)
 $$(protoc_c_done_file): PRIVATE_PROTO_OUT_CP_PROTO := $$(protoc_c_out_cp_proto)
 $$(protoc_c_done_file): PRIVATE_PROTO_DEP_FILE := $$(protoc_c_dep_file)
-
 $$(protoc_c_done_file): PRIVATE_PROTOC_GEN_C_EXE := $(HOST_OUT_STAGING)/usr/bin/protoc-gen-c$(HOST_EXE_SUFFIX)
-
-# Use built-in protoc compiler on windows
-ifneq ("$(HOST_OS)","windows")
 $$(protoc_c_done_file): PRIVATE_PROTOC_EXE := $(HOST_OUT_STAGING)/usr/bin/protoc$(HOST_EXE_SUFFIX)
-else
-$$(protoc_c_done_file): PRIVATE_PROTOC_EXE := $(shell which protoc$(HOST_EXE_SUFFIX))
-endif
-
 $$(protoc_c_done_file): $$(protoc_c_in_file)
 	$$(call print-banner1,"Generating",$$(call path-from-top,$$(PRIVATE_PROTO_SRC_FILES)),$$(call path-from-top,$3))
 	@mkdir -p $$(PRIVATE_OUT_DIR)
