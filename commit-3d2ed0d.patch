@@ -1,0 +1,1215 @@
+From 3d2ed0d41004a47de7731f124d91b33cfbe44ee4 Mon Sep 17 00:00:00 2001
+From: Adam Cozzette <acozzette@google.com>
+Date: Fri, 16 Oct 2020 16:35:43 -0700
+Subject: Updated the generator to fully qualify std::string
+
+The protobuf common.h header currently has a "using std::string;"
+statement that pulls std::string into the google::protobuf namespace:
+https://github.com/protocolbuffers/protobuf/blob/ce66f6047db44df3234bccd6fcf468bccc14a760/src/google/protobuf/stubs/common.h#L195
+
+I plan to delete that line soon. To keep protobuf-c working, this commit
+updates the generator to fully qualify std::string.
+
+diff --git a/protoc-c/c_bytes_field.cc b/protoc-c/c_bytes_field.cc
+index 716e6a8..4f9c323 100644
+--- a/protoc-c/c_bytes_field.cc
++++ b/protoc-c/c_bytes_field.cc
+@@ -74,7 +74,7 @@ namespace c {
+ using internal::WireFormat;
+ 
+ void SetBytesVariables(const FieldDescriptor* descriptor,
+-                        std::map<string, string>* variables) {
++                        std::map<std::string, std::string>* variables) {
+   (*variables)["name"] = FieldName(descriptor);
+   (*variables)["default"] =
+     "\"" + CEscape(descriptor->default_value_string()) + "\"";
+@@ -89,7 +89,7 @@ BytesFieldGenerator(const FieldDescriptor* descriptor)
+   SetBytesVariables(descriptor, &variables_);
+   variables_["default_value"] = descriptor->has_default_value()
+                               ? GetDefaultValue() 
+-			      : string("{0,NULL}");
++			      : std::string("{0,NULL}");
+ }
+ 
+ BytesFieldGenerator::~BytesFieldGenerator() {}
+@@ -113,7 +113,7 @@ void BytesFieldGenerator::GenerateStructMembers(io::Printer* printer) const
+ }
+ void BytesFieldGenerator::GenerateDefaultValueDeclarations(io::Printer* printer) const
+ {
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   vars["default_value_data"] = FullNameToLower(descriptor_->full_name())
+ 	                     + "__default_value_data";
+   printer->Print(vars, "extern uint8_t $default_value_data$[];\n");
+@@ -121,13 +121,13 @@ void BytesFieldGenerator::GenerateDefaultValueDeclarations(io::Printer* printer)
+ 
+ void BytesFieldGenerator::GenerateDefaultValueImplementations(io::Printer* printer) const
+ {
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   vars["default_value_data"] = FullNameToLower(descriptor_->full_name())
+ 	                     + "__default_value_data";
+   vars["escaped"] = CEscape(descriptor_->default_value_string());
+   printer->Print(vars, "uint8_t $default_value_data$[] = \"$escaped$\";\n");
+ }
+-string BytesFieldGenerator::GetDefaultValue(void) const
++std::string BytesFieldGenerator::GetDefaultValue(void) const
+ {
+   return "{ "
+ 	+ SimpleItoa(descriptor_->default_value_string().size())
+diff --git a/protoc-c/c_bytes_field.h b/protoc-c/c_bytes_field.h
+index c4a71e8..bf873f0 100644
+--- a/protoc-c/c_bytes_field.h
++++ b/protoc-c/c_bytes_field.h
+@@ -82,11 +82,11 @@ class BytesFieldGenerator : public FieldGenerator {
+   void GenerateDescriptorInitializer(io::Printer* printer) const;
+   void GenerateDefaultValueDeclarations(io::Printer* printer) const;
+   void GenerateDefaultValueImplementations(io::Printer* printer) const;
+-  string GetDefaultValue(void) const;
++  std::string GetDefaultValue(void) const;
+   void GenerateStaticInit(io::Printer* printer) const;
+ 
+  private:
+-  std::map<string, string> variables_;
++  std::map<std::string, std::string> variables_;
+ 
+   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(BytesFieldGenerator);
+ };
+diff --git a/protoc-c/c_enum.cc b/protoc-c/c_enum.cc
+index fa2789a..7438422 100644
+--- a/protoc-c/c_enum.cc
++++ b/protoc-c/c_enum.cc
+@@ -73,7 +73,7 @@ namespace compiler {
+ namespace c {
+ 
+ EnumGenerator::EnumGenerator(const EnumDescriptor* descriptor,
+-                             const string& dllexport_decl)
++                             const std::string& dllexport_decl)
+   : descriptor_(descriptor),
+     dllexport_decl_(dllexport_decl) {
+ }
+@@ -81,7 +81,7 @@ EnumGenerator::EnumGenerator(const EnumDescriptor* descriptor,
+ EnumGenerator::~EnumGenerator() {}
+ 
+ void EnumGenerator::GenerateDefinition(io::Printer* printer) {
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   vars["classname"] = FullNameToC(descriptor_->full_name());
+   vars["shortname"] = descriptor_->name();
+   vars["uc_name"] = FullNameToUpper(descriptor_->full_name());
+@@ -126,7 +126,7 @@ void EnumGenerator::GenerateDefinition(io::Printer* printer) {
+ }
+ 
+ void EnumGenerator::GenerateDescriptorDeclarations(io::Printer* printer) {
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   if (dllexport_decl_.empty()) {
+     vars["dllexport"] = "";
+   } else {
+@@ -149,7 +149,7 @@ struct ValueIndex
+ void EnumGenerator::GenerateValueInitializer(io::Printer *printer, int index)
+ {
+   const EnumValueDescriptor *vd = descriptor_->value(index);
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   bool optimize_code_size = descriptor_->file()->options().has_optimize_for() &&
+     descriptor_->file()->options().optimize_for() ==
+     FileOptions_OptimizeMode_CODE_SIZE;
+@@ -182,7 +182,7 @@ static int compare_value_indices_by_name(const void *a, const void *b)
+ }
+ 
+ void EnumGenerator::GenerateEnumDescriptor(io::Printer* printer) {
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   vars["fullname"] = descriptor_->full_name();
+   vars["lcclassname"] = FullNameToLower(descriptor_->full_name());
+   vars["cname"] = FullNameToC(descriptor_->full_name());
+diff --git a/protoc-c/c_enum.h b/protoc-c/c_enum.h
+index 9eb9a66..9c34b69 100644
+--- a/protoc-c/c_enum.h
++++ b/protoc-c/c_enum.h
+@@ -81,7 +81,7 @@ class EnumGenerator {
+  public:
+   // See generator.cc for the meaning of dllexport_decl.
+   explicit EnumGenerator(const EnumDescriptor* descriptor,
+-                         const string& dllexport_decl);
++                         const std::string& dllexport_decl);
+   ~EnumGenerator();
+ 
+   // Header stuff.
+@@ -105,7 +105,7 @@ class EnumGenerator {
+ 
+  private:
+   const EnumDescriptor* descriptor_;
+-  string dllexport_decl_;
++  std::string dllexport_decl_;
+ 
+   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(EnumGenerator);
+ };
+diff --git a/protoc-c/c_enum_field.cc b/protoc-c/c_enum_field.cc
+index c99583d..f06b1ef 100644
+--- a/protoc-c/c_enum_field.cc
++++ b/protoc-c/c_enum_field.cc
+@@ -75,7 +75,7 @@ using internal::WireFormat;
+ // TODO(kenton):  Factor out a "SetCommonFieldVariables()" to get rid of
+ //   repeat code between this and the other field types.
+ void SetEnumVariables(const FieldDescriptor* descriptor,
+-                      std::map<string, string>* variables) {
++                      std::map<std::string, std::string>* variables) {
+ 
+   (*variables)["name"] = FieldName(descriptor);
+   (*variables)["type"] = FullNameToC(descriptor->enum_type()->full_name());
+@@ -114,7 +114,7 @@ void EnumFieldGenerator::GenerateStructMembers(io::Printer* printer) const
+   }
+ }
+ 
+-string EnumFieldGenerator::GetDefaultValue(void) const
++std::string EnumFieldGenerator::GetDefaultValue(void) const
+ {
+   return variables_.find("default")->second;
+ }
+@@ -138,7 +138,7 @@ void EnumFieldGenerator::GenerateStaticInit(io::Printer* printer) const
+ 
+ void EnumFieldGenerator::GenerateDescriptorInitializer(io::Printer* printer) const
+ {
+-  string addr = "&" + FullNameToLower(descriptor_->enum_type()->full_name()) + "__descriptor";
++  std::string addr = "&" + FullNameToLower(descriptor_->enum_type()->full_name()) + "__descriptor";
+   GenerateDescriptorInitializerGeneric(printer, true, "ENUM", addr);
+ }
+ 
+diff --git a/protoc-c/c_enum_field.h b/protoc-c/c_enum_field.h
+index 11df682..3f8c005 100644
+--- a/protoc-c/c_enum_field.h
++++ b/protoc-c/c_enum_field.h
+@@ -80,11 +80,11 @@ class EnumFieldGenerator : public FieldGenerator {
+   // implements FieldGenerator ---------------------------------------
+   void GenerateStructMembers(io::Printer* printer) const;
+   void GenerateDescriptorInitializer(io::Printer* printer) const;
+-  string GetDefaultValue(void) const;
++  std::string GetDefaultValue(void) const;
+   void GenerateStaticInit(io::Printer* printer) const;
+ 
+  private:
+-  std::map<string, string> variables_;
++  std::map<std::string, std::string> variables_;
+ 
+   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(EnumFieldGenerator);
+ };
+diff --git a/protoc-c/c_extension.cc b/protoc-c/c_extension.cc
+index b00199b..30c9ecf 100644
+--- a/protoc-c/c_extension.cc
++++ b/protoc-c/c_extension.cc
+@@ -70,7 +70,7 @@ namespace compiler {
+ namespace c {
+ 
+ ExtensionGenerator::ExtensionGenerator(const FieldDescriptor* descriptor,
+-                                       const string& dllexport_decl)
++                                       const std::string& dllexport_decl)
+   : descriptor_(descriptor),
+     dllexport_decl_(dllexport_decl) {
+ }
+diff --git a/protoc-c/c_extension.h b/protoc-c/c_extension.h
+index ddbf270..9541388 100644
+--- a/protoc-c/c_extension.h
++++ b/protoc-c/c_extension.h
+@@ -85,7 +85,7 @@ class ExtensionGenerator {
+  public:
+   // See generator.cc for the meaning of dllexport_decl.
+   explicit ExtensionGenerator(const FieldDescriptor* descriptor,
+-                              const string& dllexport_decl);
++                              const std::string& dllexport_decl);
+   ~ExtensionGenerator();
+ 
+   // Header stuff.
+@@ -96,8 +96,8 @@ class ExtensionGenerator {
+ 
+  private:
+   const FieldDescriptor* descriptor_;
+-  string type_traits_;
+-  string dllexport_decl_;
++  std::string type_traits_;
++  std::string dllexport_decl_;
+ 
+   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ExtensionGenerator);
+ };
+diff --git a/protoc-c/c_field.cc b/protoc-c/c_field.cc
+index bf11def..ee8021e 100644
+--- a/protoc-c/c_field.cc
++++ b/protoc-c/c_field.cc
+@@ -103,10 +103,10 @@ static bool is_packable_type(FieldDescriptor::Type type)
+ 
+ void FieldGenerator::GenerateDescriptorInitializerGeneric(io::Printer* printer,
+ 							  bool optional_uses_has,
+-							  const string &type_macro,
+-							  const string &descriptor_addr) const
++							  const std::string &type_macro,
++							  const std::string &descriptor_addr) const
+ {
+-  std::map<string, string> variables;
++  std::map<std::string, std::string> variables;
+   variables["TYPE"] = type_macro;
+   variables["classname"] = FullNameToC(FieldScope(descriptor_)->full_name());
+   variables["name"] = FieldName(descriptor_);
+@@ -126,7 +126,7 @@ void FieldGenerator::GenerateDescriptorInitializerGeneric(io::Printer* printer,
+   }
+ 
+   if (descriptor_->has_default_value()) {
+-    variables["default_value"] = string("&")
++    variables["default_value"] = std::string("&")
+                                + FullNameToLower(descriptor_->full_name())
+ 			       + "__default_value";
+   } else if (FieldSyntax(descriptor_) == 3 &&
+diff --git a/protoc-c/c_field.h b/protoc-c/c_field.h
+index 8a61634..3cad35d 100644
+--- a/protoc-c/c_field.h
++++ b/protoc-c/c_field.h
+@@ -91,7 +91,7 @@ class FieldGenerator {
+ 
+   virtual void GenerateDefaultValueDeclarations(io::Printer* printer) const { }
+   virtual void GenerateDefaultValueImplementations(io::Printer* printer) const { }
+-  virtual string GetDefaultValue() const = 0;
++  virtual std::string GetDefaultValue() const = 0;
+ 
+   // Generate members to initialize this field from a static initializer
+   virtual void GenerateStaticInit(io::Printer* printer) const = 0;
+@@ -100,8 +100,8 @@ class FieldGenerator {
+  protected:
+   void GenerateDescriptorInitializerGeneric(io::Printer* printer,
+                                             bool optional_uses_has,
+-                                            const string &type_macro,
+-                                            const string &descriptor_addr) const;
++                                            const std::string &type_macro,
++                                            const std::string &descriptor_addr) const;
+   const FieldDescriptor *descriptor_;
+ 
+  private:
+diff --git a/protoc-c/c_file.cc b/protoc-c/c_file.cc
+index 90f18b4..70411d2 100644
+--- a/protoc-c/c_file.cc
++++ b/protoc-c/c_file.cc
+@@ -80,7 +80,7 @@ namespace c {
+ // ===================================================================
+ 
+ FileGenerator::FileGenerator(const FileDescriptor* file,
+-                             const string& dllexport_decl)
++                             const std::string& dllexport_decl)
+   : file_(file),
+     message_generators_(
+       new std::unique_ptr<MessageGenerator>[file->message_type_count()]),
+@@ -117,7 +117,7 @@ FileGenerator::FileGenerator(const FileDescriptor* file,
+ FileGenerator::~FileGenerator() {}
+ 
+ void FileGenerator::GenerateHeader(io::Printer* printer) {
+-  string filename_identifier = FilenameIdentifier(file_->name());
++  std::string filename_identifier = FilenameIdentifier(file_->name());
+ 
+   int min_header_version = 1000000;
+ #if defined(HAVE_PROTO3)
+diff --git a/protoc-c/c_file.h b/protoc-c/c_file.h
+index 1101794..f4c96d3 100644
+--- a/protoc-c/c_file.h
++++ b/protoc-c/c_file.h
+@@ -90,7 +90,7 @@ class FileGenerator {
+  public:
+   // See generator.cc for the meaning of dllexport_decl.
+   explicit FileGenerator(const FileDescriptor* file,
+-                         const string& dllexport_decl);
++                         const std::string& dllexport_decl);
+   ~FileGenerator();
+ 
+   void GenerateHeader(io::Printer* printer);
+@@ -105,7 +105,7 @@ class FileGenerator {
+   std::unique_ptr<std::unique_ptr<ExtensionGenerator>[]> extension_generators_;
+ 
+   // E.g. if the package is foo.bar, package_parts_ is {"foo", "bar"}.
+-  std::vector<string> package_parts_;
++  std::vector<std::string> package_parts_;
+ 
+   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(FileGenerator);
+ };
+diff --git a/protoc-c/c_generator.cc b/protoc-c/c_generator.cc
+index 46ad477..8a431e8 100644
+--- a/protoc-c/c_generator.cc
++++ b/protoc-c/c_generator.cc
+@@ -81,14 +81,14 @@ namespace c {
+ //   "foo=bar,baz,qux=corge"
+ // parses to the pairs:
+ //   ("foo", "bar"), ("baz", ""), ("qux", "corge")
+-void ParseOptions(const string& text, std::vector<std::pair<string, string> >* output) {
+-  std::vector<string> parts;
++void ParseOptions(const std::string& text, std::vector<std::pair<std::string, std::string> >* output) {
++  std::vector<std::string> parts;
+   SplitStringUsing(text, ",", &parts);
+ 
+   for (unsigned i = 0; i < parts.size(); i++) {
+-    string::size_type equals_pos = parts[i].find_first_of('=');
+-    std::pair<string, string> value;
+-    if (equals_pos == string::npos) {
++    std::string::size_type equals_pos = parts[i].find_first_of('=');
++    std::pair<std::string, std::string> value;
++    if (equals_pos == std::string::npos) {
+       value.first = parts[i];
+       value.second = "";
+     } else {
+@@ -103,10 +103,10 @@ CGenerator::CGenerator() {}
+ CGenerator::~CGenerator() {}
+ 
+ bool CGenerator::Generate(const FileDescriptor* file,
+-                            const string& parameter,
++                            const std::string& parameter,
+                             OutputDirectory* output_directory,
+-                            string* error) const {
+-  std::vector<std::pair<string, string> > options;
++                            std::string* error) const {
++  std::vector<std::pair<std::string, std::string> > options;
+   ParseOptions(parameter, &options);
+ 
+   // -----------------------------------------------------------------
+@@ -129,7 +129,7 @@ bool CGenerator::Generate(const FileDescriptor* file,
+   //   }
+   // FOO_EXPORT is a macro which should expand to __declspec(dllexport) or
+   // __declspec(dllimport) depending on what is being compiled.
+-  string dllexport_decl;
++  std::string dllexport_decl;
+ 
+   for (unsigned i = 0; i < options.size(); i++) {
+     if (options[i].first == "dllexport_decl") {
+@@ -143,7 +143,7 @@ bool CGenerator::Generate(const FileDescriptor* file,
+   // -----------------------------------------------------------------
+ 
+ 
+-  string basename = StripProto(file->name());
++  std::string basename = StripProto(file->name());
+   basename.append(".pb-c");
+ 
+   FileGenerator file_generator(file, dllexport_decl);
+diff --git a/protoc-c/c_generator.h b/protoc-c/c_generator.h
+index f454710..9d94bec 100644
+--- a/protoc-c/c_generator.h
++++ b/protoc-c/c_generator.h
+@@ -84,9 +84,9 @@ class LIBPROTOC_EXPORT CGenerator : public CodeGenerator {
+ 
+   // implements CodeGenerator ----------------------------------------
+   bool Generate(const FileDescriptor* file,
+-                const string& parameter,
++                const std::string& parameter,
+                 OutputDirectory* output_directory,
+-                string* error) const;
++                std::string* error) const;
+ 
+  private:
+   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(CGenerator);
+diff --git a/protoc-c/c_helpers.cc b/protoc-c/c_helpers.cc
+index 90aeb53..20fc4cc 100644
+--- a/protoc-c/c_helpers.cc
++++ b/protoc-c/c_helpers.cc
+@@ -87,30 +87,30 @@ namespace c {
+ #pragma warning(disable:4996)
+ #endif
+ 
+-string DotsToUnderscores(const string& name) {
++std::string DotsToUnderscores(const std::string& name) {
+   return StringReplace(name, ".", "_", true);
+ }
+ 
+-string DotsToColons(const string& name) {
++std::string DotsToColons(const std::string& name) {
+   return StringReplace(name, ".", "::", true);
+ }
+ 
+-string SimpleFtoa(float f) {
++std::string SimpleFtoa(float f) {
+   char buf[100];
+   snprintf(buf,sizeof(buf),"%.*g", FLT_DIG, f);
+   buf[sizeof(buf)-1] = 0;		/* should NOT be necessary */
+   return buf;
+ }
+-string SimpleDtoa(double d) {
++std::string SimpleDtoa(double d) {
+   char buf[100];
+   snprintf(buf,sizeof(buf),"%.*g", DBL_DIG, d);
+   buf[sizeof(buf)-1] = 0;		/* should NOT be necessary */
+   return buf;
+ }
+ 
+-string CamelToUpper(const string &name) {
++std::string CamelToUpper(const std::string &name) {
+   bool was_upper = true;		// suppress initial _
+-  string rv = "";
++  std::string rv = "";
+   int len = name.length();
+   for (int i = 0; i < len; i++) {
+     bool is_upper = isupper(name[i]);
+@@ -125,9 +125,9 @@ string CamelToUpper(const string &name) {
+   }
+   return rv;
+ }
+-string CamelToLower(const string &name) {
++std::string CamelToLower(const std::string &name) {
+   bool was_upper = true;		// suppress initial _
+-  string rv = "";
++  std::string rv = "";
+   int len = name.length();
+   for (int i = 0; i < len; i++) {
+     bool is_upper = isupper(name[i]);
+@@ -144,24 +144,24 @@ string CamelToLower(const string &name) {
+ }
+ 
+ 
+-string ToUpper(const string &name) {
+-  string rv = "";
++std::string ToUpper(const std::string &name) {
++  std::string rv = "";
+   int len = name.length();
+   for (int i = 0; i < len; i++) {
+     rv += toupper(name[i]);
+   }
+   return rv;
+ }
+-string ToLower(const string &name) {
+-  string rv = "";
++std::string ToLower(const std::string &name) {
++  std::string rv = "";
+   int len = name.length();
+   for (int i = 0; i < len; i++) {
+     rv += tolower(name[i]);
+   }
+   return rv;
+ }
+-string ToCamel(const string &name) {
+-  string rv = "";
++std::string ToCamel(const std::string &name) {
++  std::string rv = "";
+   int len = name.length();
+   bool next_is_upper = true;
+   for (int i = 0; i < len; i++) {
+@@ -177,10 +177,10 @@ string ToCamel(const string &name) {
+   return rv;
+ }
+ 
+-string FullNameToLower(const string &full_name) {
+-  std::vector<string> pieces;
++std::string FullNameToLower(const std::string &full_name) {
++  std::vector<std::string> pieces;
+   SplitStringUsing(full_name, ".", &pieces);
+-  string rv = "";
++  std::string rv = "";
+   for (unsigned i = 0; i < pieces.size(); i++) {
+     if (pieces[i] == "") continue;
+     if (rv != "") rv += "__";
+@@ -188,10 +188,10 @@ string FullNameToLower(const string &full_name) {
+   }
+   return rv;
+ }
+-string FullNameToUpper(const string &full_name) {
+-  std::vector<string> pieces;
++std::string FullNameToUpper(const std::string &full_name) {
++  std::vector<std::string> pieces;
+   SplitStringUsing(full_name, ".", &pieces);
+-  string rv = "";
++  std::string rv = "";
+   for (unsigned i = 0; i < pieces.size(); i++) {
+     if (pieces[i] == "") continue;
+     if (rv != "") rv += "__";
+@@ -199,10 +199,10 @@ string FullNameToUpper(const string &full_name) {
+   }
+   return rv;
+ }
+-string FullNameToC(const string &full_name) {
+-  std::vector<string> pieces;
++std::string FullNameToC(const std::string &full_name) {
++  std::vector<std::string> pieces;
+   SplitStringUsing(full_name, ".", &pieces);
+-  string rv = "";
++  std::string rv = "";
+   for (unsigned i = 0; i < pieces.size(); i++) {
+     if (pieces[i] == "") continue;
+     if (rv != "") rv += "__";
+@@ -211,11 +211,11 @@ string FullNameToC(const string &full_name) {
+   return rv;
+ }
+ 
+-void PrintComment (io::Printer* printer, string comment)
++void PrintComment (io::Printer* printer, std::string comment)
+ {
+    if (!comment.empty())
+    {
+-      std::vector<string> comment_lines;
++      std::vector<std::string> comment_lines;
+       SplitStringUsing (comment, "\r\n", &comment_lines);
+       printer->Print ("/*\n");
+       for (int i = 0; i < comment_lines.size(); i++)
+@@ -228,10 +228,10 @@ void PrintComment (io::Printer* printer, string comment)
+ 
+             /* Or cause other compiler issues. */
+             size_t delim_i;
+-            while ((delim_i = comment_lines[i].find("/*")) != string::npos)
++            while ((delim_i = comment_lines[i].find("/*")) != std::string::npos)
+                comment_lines[i][delim_i] = ' ';
+ 
+-            while ((delim_i = comment_lines[i].find("*/")) != string::npos)
++            while ((delim_i = comment_lines[i].find("*/")) != std::string::npos)
+                comment_lines[i][delim_i + 1] = ' ';
+ 
+             printer->Print (" *$line$\n", "line", comment_lines[i]);
+@@ -241,8 +241,8 @@ void PrintComment (io::Printer* printer, string comment)
+    }
+ }
+ 
+-string ConvertToSpaces(const string &input) {
+-  return string(input.size(), ' ');
++std::string ConvertToSpaces(const std::string &input) {
++  return std::string(input.size(), ' ');
+ }
+ 
+ int compare_name_indices_by_name(const void *a, const void *b)
+@@ -253,7 +253,7 @@ int compare_name_indices_by_name(const void *a, const void *b)
+ }
+ 
+ 
+-string CEscape(const string& src);
++std::string CEscape(const std::string& src);
+ 
+ const char* const kKeywordList[] = {
+   "and", "and_eq", "asm", "auto", "bitand", "bitor", "bool", "break", "case",
+@@ -268,24 +268,24 @@ const char* const kKeywordList[] = {
+   "void", "volatile", "wchar_t", "while", "xor", "xor_eq"
+ };
+ 
+-std::set<string> MakeKeywordsMap() {
+-  std::set<string> result;
++std::set<std::string> MakeKeywordsMap() {
++  std::set<std::string> result;
+   for (int i = 0; i < GOOGLE_ARRAYSIZE(kKeywordList); i++) {
+     result.insert(kKeywordList[i]);
+   }
+   return result;
+ }
+ 
+-std::set<string> kKeywords = MakeKeywordsMap();
++std::set<std::string> kKeywords = MakeKeywordsMap();
+ 
+-string ClassName(const Descriptor* descriptor, bool qualified) {
++std::string ClassName(const Descriptor* descriptor, bool qualified) {
+   // Find "outer", the descriptor of the top-level message in which
+   // "descriptor" is embedded.
+   const Descriptor* outer = descriptor;
+   while (outer->containing_type() != NULL) outer = outer->containing_type();
+ 
+-  const string& outer_name = outer->full_name();
+-  string inner_name = descriptor->full_name().substr(outer_name.size());
++  const std::string& outer_name = outer->full_name();
++  std::string inner_name = descriptor->full_name().substr(outer_name.size());
+ 
+   if (qualified) {
+     return "::" + DotsToColons(outer_name) + DotsToUnderscores(inner_name);
+@@ -294,7 +294,7 @@ string ClassName(const Descriptor* descriptor, bool qualified) {
+   }
+ }
+ 
+-string ClassName(const EnumDescriptor* enum_descriptor, bool qualified) {
++std::string ClassName(const EnumDescriptor* enum_descriptor, bool qualified) {
+   if (enum_descriptor->containing_type() == NULL) {
+     if (qualified) {
+       return DotsToColons(enum_descriptor->full_name());
+@@ -302,29 +302,29 @@ string ClassName(const EnumDescriptor* enum_descriptor, bool qualified) {
+       return enum_descriptor->name();
+     }
+   } else {
+-    string result = ClassName(enum_descriptor->containing_type(), qualified);
++    std::string result = ClassName(enum_descriptor->containing_type(), qualified);
+     result += '_';
+     result += enum_descriptor->name();
+     return result;
+   }
+ }
+ 
+-string FieldName(const FieldDescriptor* field) {
+-  string result = ToLower(field->name());
++std::string FieldName(const FieldDescriptor* field) {
++  std::string result = ToLower(field->name());
+   if (kKeywords.count(result) > 0) {
+     result.append("_");
+   }
+   return result;
+ }
+ 
+-string FieldDeprecated(const FieldDescriptor* field) {
++std::string FieldDeprecated(const FieldDescriptor* field) {
+   if (field->options().deprecated()) {
+     return " PROTOBUF_C__DEPRECATED";
+   }
+   return "";
+ }
+ 
+-string StripProto(const string& filename) {
++std::string StripProto(const std::string& filename) {
+   if (HasSuffixString(filename, ".protodevel")) {
+     return StripSuffixString(filename, ".protodevel");
+   } else {
+@@ -333,8 +333,8 @@ string StripProto(const string& filename) {
+ }
+ 
+ // Convert a file name into a valid identifier.
+-string FilenameIdentifier(const string& filename) {
+-  string result;
++std::string FilenameIdentifier(const std::string& filename) {
++  std::string result;
+   for (unsigned i = 0; i < filename.size(); i++) {
+     if (isalnum(filename[i])) {
+       result.push_back(filename[i]);
+@@ -350,11 +350,11 @@ string FilenameIdentifier(const string& filename) {
+ }
+ 
+ // Return the name of the BuildDescriptors() function for a given file.
+-string GlobalBuildDescriptorsName(const string& filename) {
++std::string GlobalBuildDescriptorsName(const std::string& filename) {
+   return "proto_BuildDescriptors_" + FilenameIdentifier(filename);
+ }
+ 
+-string GetLabelName(FieldDescriptor::Label label) {
++std::string GetLabelName(FieldDescriptor::Label label) {
+   switch (label) {
+     case FieldDescriptor::LABEL_OPTIONAL: return "optional";
+     case FieldDescriptor::LABEL_REQUIRED: return "required";
+@@ -364,9 +364,9 @@ string GetLabelName(FieldDescriptor::Label label) {
+ }
+ 
+ unsigned
+-WriteIntRanges(io::Printer* printer, int n_values, const int *values, const string &name)
++WriteIntRanges(io::Printer* printer, int n_values, const int *values, const std::string &name)
+ {
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   vars["name"] = name;
+   if (n_values > 0) {
+     int n_ranges = 1;
+@@ -420,19 +420,19 @@ WriteIntRanges(io::Printer* printer, int n_values, const int *values, const stri
+ //    it only replaces the first instance of "old."
+ // ----------------------------------------------------------------------
+ 
+-void StringReplace(const string& s, const string& oldsub,
+-                   const string& newsub, bool replace_all,
+-                   string* res) {
++void StringReplace(const std::string& s, const std::string& oldsub,
++                   const std::string& newsub, bool replace_all,
++                   std::string* res) {
+   if (oldsub.empty()) {
+     res->append(s);  // if empty, append the given string.
+     return;
+   }
+ 
+-  string::size_type start_pos = 0;
+-  string::size_type pos;
++  std::string::size_type start_pos = 0;
++  std::string::size_type pos;
+   do {
+     pos = s.find(oldsub, start_pos);
+-    if (pos == string::npos) {
++    if (pos == std::string::npos) {
+       break;
+     }
+     res->append(s, start_pos, pos - start_pos);
+@@ -452,9 +452,9 @@ void StringReplace(const string& s, const string& oldsub,
+ //    happened or not.
+ // ----------------------------------------------------------------------
+ 
+-string StringReplace(const string& s, const string& oldsub,
+-                     const string& newsub, bool replace_all) {
+-  string ret;
++std::string StringReplace(const std::string& s, const std::string& oldsub,
++                          const std::string& newsub, bool replace_all) {
++  std::string ret;
+   StringReplace(s, oldsub, newsub, replace_all, &ret);
+   return ret;
+ }
+@@ -469,7 +469,7 @@ string StringReplace(const string& s, const string& oldsub,
+ // ----------------------------------------------------------------------
+ template <typename ITR>
+ static inline
+-void SplitStringToIteratorUsing(const string& full,
++void SplitStringToIteratorUsing(const std::string& full,
+                                 const char* delim,
+                                 ITR& result) {
+   // Optimize the common case where delim is a single character.
+@@ -483,17 +483,17 @@ void SplitStringToIteratorUsing(const string& full,
+       } else {
+         const char* start = p;
+         while (++p != end && *p != c);
+-        *result++ = string(start, p - start);
++        *result++ = std::string(start, p - start);
+       }
+     }
+     return;
+   }
+ 
+-  string::size_type begin_index, end_index;
++  std::string::size_type begin_index, end_index;
+   begin_index = full.find_first_not_of(delim);
+-  while (begin_index != string::npos) {
++  while (begin_index != std::string::npos) {
+     end_index = full.find_first_of(delim, begin_index);
+-    if (end_index == string::npos) {
++    if (end_index == std::string::npos) {
+       *result++ = full.substr(begin_index);
+       return;
+     }
+@@ -502,10 +502,10 @@ void SplitStringToIteratorUsing(const string& full,
+   }
+ }
+ 
+-void SplitStringUsing(const string& full,
++void SplitStringUsing(const std::string& full,
+                       const char* delim,
+-                      std::vector<string>* result) {
+-  std::back_insert_iterator< std::vector<string> > it(*result);
++                      std::vector<std::string>* result) {
++  std::back_insert_iterator< std::vector<std::string> > it(*result);
+   SplitStringToIteratorUsing(full, delim, it);
+ }
+ 
+@@ -558,13 +558,13 @@ static int CEscapeInternal(const char* src, int src_len, char* dest,
+   dest[used] = '\0';   // doesn't count towards return value though
+   return used;
+ }
+-string CEscape(const string& src) {
++std::string CEscape(const std::string& src) {
+   const int dest_length = src.size() * 4 + 1; // Maximum possible expansion
+   std::unique_ptr<char[]> dest(new char[dest_length]);
+   const int len = CEscapeInternal(src.data(), src.size(),
+                                   dest.get(), dest_length, false);
+   GOOGLE_DCHECK_GE(len, 0);
+-  return string(dest.get(), len);
++  return std::string(dest.get(), len);
+ }
+ 
+ }  // namespace c
+diff --git a/protoc-c/c_helpers.h b/protoc-c/c_helpers.h
+index 9dc8c5e..7562b93 100644
+--- a/protoc-c/c_helpers.h
++++ b/protoc-c/c_helpers.h
+@@ -83,23 +83,23 @@ namespace c {
+ //   Foo__Bar__Baz_Qux
+ // While the non-qualified version would be:
+ //   Baz_Qux
+-string ClassName(const Descriptor* descriptor, bool qualified);
+-string ClassName(const EnumDescriptor* enum_descriptor, bool qualified);
++std::string ClassName(const Descriptor* descriptor, bool qualified);
++std::string ClassName(const EnumDescriptor* enum_descriptor, bool qualified);
+ 
+ // --- Borrowed from stubs. ---
+-template <typename T> string SimpleItoa(T n) {
++template <typename T> std::string SimpleItoa(T n) {
+   std::stringstream stream;
+   stream << n;
+   return stream.str();
+ }
+ 
+-string SimpleFtoa(float f);
+-string SimpleDtoa(double f);
+-void SplitStringUsing(const string &str, const char *delim, std::vector<string> *out);
+-string CEscape(const string& src);
+-string StringReplace(const string& s, const string& oldsub, const string& newsub, bool replace_all);
+-inline bool HasSuffixString(const string& str, const string& suffix) { return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0; }
+-inline string StripSuffixString(const string& str, const string& suffix) { if (HasSuffixString(str, suffix)) { return str.substr(0, str.size() - suffix.size()); } else { return str; } }
++std::string SimpleFtoa(float f);
++std::string SimpleDtoa(double f);
++void SplitStringUsing(const std::string &str, const char *delim, std::vector<std::string> *out);
++std::string CEscape(const std::string& src);
++std::string StringReplace(const std::string& s, const std::string& oldsub, const std::string& newsub, bool replace_all);
++inline bool HasSuffixString(const std::string& str, const std::string& suffix) { return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0; }
++inline std::string StripSuffixString(const std::string& str, const std::string& suffix) { if (HasSuffixString(str, suffix)) { return str.substr(0, str.size() - suffix.size()); } else { return str; } }
+ char* FastHexToBuffer(int i, char* buffer);
+ 
+ 
+@@ -107,10 +107,10 @@ char* FastHexToBuffer(int i, char* buffer);
+ // The name is coerced to lower-case to emulate proto1 behavior.  People
+ // should be using lowercase-with-underscores style for proto field names
+ // anyway, so normally this just returns field->name().
+-string FieldName(const FieldDescriptor* field);
++std::string FieldName(const FieldDescriptor* field);
+ 
+ // Get macro string for deprecated field
+-string FieldDeprecated(const FieldDescriptor* field);
++std::string FieldDeprecated(const FieldDescriptor* field);
+ 
+ // Returns the scope where the field was defined (for extensions, this is
+ // different from the message type to which the field applies).
+@@ -121,31 +121,31 @@ inline const Descriptor* FieldScope(const FieldDescriptor* field) {
+ 
+ // convert a CamelCase class name into an all uppercase affair
+ // with underscores separating words, e.g. MyClass becomes MY_CLASS.
+-string CamelToUpper(const string &class_name);
+-string CamelToLower(const string &class_name);
++std::string CamelToUpper(const std::string &class_name);
++std::string CamelToLower(const std::string &class_name);
+ 
+ // lowercased, underscored name to camel case
+-string ToCamel(const string &name);
++std::string ToCamel(const std::string &name);
+ 
+ // lowercase the string
+-string ToLower(const string &class_name);
+-string ToUpper(const string &class_name);
++std::string ToLower(const std::string &class_name);
++std::string ToUpper(const std::string &class_name);
+ 
+ // full_name() to lowercase with underscores
+-string FullNameToLower(const string &full_name);
+-string FullNameToUpper(const string &full_name);
++std::string FullNameToLower(const std::string &full_name);
++std::string FullNameToUpper(const std::string &full_name);
+ 
+ // full_name() to c-typename (with underscores for packages, otherwise camel case)
+-string FullNameToC(const string &class_name);
++std::string FullNameToC(const std::string &class_name);
+ 
+ // Splits, indents, formats, and prints comment lines
+-void PrintComment (io::Printer* printer, string comment);
++void PrintComment (io::Printer* printer, std::string comment);
+ 
+ // make a string of spaces as long as input
+-string ConvertToSpaces(const string &input);
++std::string ConvertToSpaces(const std::string &input);
+ 
+ // Strips ".proto" or ".protodevel" from the end of a filename.
+-string StripProto(const string& filename);
++std::string StripProto(const std::string& filename);
+ 
+ // Get the C++ type name for a primitive type (e.g. "double", "::google::protobuf::int32", etc.).
+ // Note:  non-built-in type names will be qualified, meaning they will start
+@@ -159,18 +159,18 @@ const char* PrimitiveTypeName(FieldDescriptor::CppType type);
+ const char* DeclaredTypeMethodName(FieldDescriptor::Type type);
+ 
+ // Convert a file name into a valid identifier.
+-string FilenameIdentifier(const string& filename);
++std::string FilenameIdentifier(const std::string& filename);
+ 
+ // Return the name of the BuildDescriptors() function for a given file.
+-string GlobalBuildDescriptorsName(const string& filename);
++std::string GlobalBuildDescriptorsName(const std::string& filename);
+ 
+ // return 'required', 'optional', or 'repeated'
+-string GetLabelName(FieldDescriptor::Label label);
++std::string GetLabelName(FieldDescriptor::Label label);
+ 
+ 
+ // write IntRanges entries for a bunch of sorted values.
+ // returns the number of ranges there are to bsearch.
+-unsigned WriteIntRanges(io::Printer* printer, int n_values, const int *values, const string &name);
++unsigned WriteIntRanges(io::Printer* printer, int n_values, const int *values, const std::string &name);
+ 
+ struct NameIndex
+ {
+diff --git a/protoc-c/c_message.cc b/protoc-c/c_message.cc
+index d9a6a33..14d9c09 100755
+--- a/protoc-c/c_message.cc
++++ b/protoc-c/c_message.cc
+@@ -80,7 +80,7 @@ namespace c {
+ // ===================================================================
+ 
+ MessageGenerator::MessageGenerator(const Descriptor* descriptor,
+-                                   const string& dllexport_decl)
++                                   const std::string& dllexport_decl)
+   : descriptor_(descriptor),
+     dllexport_decl_(dllexport_decl),
+     field_generators_(descriptor),
+@@ -137,7 +137,7 @@ GenerateStructDefinition(io::Printer* printer) {
+     nested_generators_[i]->GenerateStructDefinition(printer);
+   }
+ 
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   vars["classname"] = FullNameToC(descriptor_->full_name());
+   vars["lcclassname"] = FullNameToLower(descriptor_->full_name());
+   vars["ucclassname"] = FullNameToUpper(descriptor_->full_name());
+@@ -258,7 +258,7 @@ GenerateHelperFunctionDeclarations(io::Printer* printer, bool is_submessage)
+     nested_generators_[i]->GenerateHelperFunctionDeclarations(printer, true);
+   }
+ 
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   vars["classname"] = FullNameToC(descriptor_->full_name());
+   vars["lcclassname"] = FullNameToLower(descriptor_->full_name());
+   printer->Print(vars,
+@@ -306,7 +306,7 @@ void MessageGenerator::GenerateClosureTypedef(io::Printer* printer)
+   for (int i = 0; i < descriptor_->nested_type_count(); i++) {
+     nested_generators_[i]->GenerateClosureTypedef(printer);
+   }
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   vars["name"] = FullNameToC(descriptor_->full_name());
+   printer->Print(vars,
+                  "typedef void (*$name$_Closure)\n"
+@@ -331,7 +331,7 @@ GenerateHelperFunctionDefinitions(io::Printer* printer, bool is_submessage)
+     nested_generators_[i]->GenerateHelperFunctionDefinitions(printer, true);
+   }
+ 
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   vars["classname"] = FullNameToC(descriptor_->full_name());
+   vars["lcclassname"] = FullNameToLower(descriptor_->full_name());
+   vars["ucclassname"] = FullNameToUpper(descriptor_->full_name());
+@@ -389,7 +389,7 @@ GenerateHelperFunctionDefinitions(io::Printer* printer, bool is_submessage)
+ 
+ void MessageGenerator::
+ GenerateMessageDescriptor(io::Printer* printer) {
+-    std::map<string, string> vars;
++    std::map<std::string, std::string> vars;
+     vars["fullname"] = descriptor_->full_name();
+     vars["classname"] = FullNameToC(descriptor_->full_name());
+     vars["lcclassname"] = FullNameToLower(descriptor_->full_name());
+diff --git a/protoc-c/c_message.h b/protoc-c/c_message.h
+index a30d78b..c5e8431 100644
+--- a/protoc-c/c_message.h
++++ b/protoc-c/c_message.h
+@@ -86,7 +86,7 @@ class MessageGenerator {
+  public:
+   // See generator.cc for the meaning of dllexport_decl.
+   explicit MessageGenerator(const Descriptor* descriptor,
+-                            const string& dllexport_decl);
++                            const std::string& dllexport_decl);
+   ~MessageGenerator();
+ 
+   // Header stuff.
+@@ -122,10 +122,10 @@ class MessageGenerator {
+ 
+  private:
+ 
+-  string GetDefaultValueC(const FieldDescriptor *fd);
++  std::string GetDefaultValueC(const FieldDescriptor *fd);
+ 
+   const Descriptor* descriptor_;
+-  string dllexport_decl_;
++  std::string dllexport_decl_;
+   FieldGeneratorMap field_generators_;
+   std::unique_ptr<std::unique_ptr<MessageGenerator>[]> nested_generators_;
+   std::unique_ptr<std::unique_ptr<EnumGenerator>[]> enum_generators_;
+diff --git a/protoc-c/c_message_field.cc b/protoc-c/c_message_field.cc
+index 148cc9a..b57fcf5 100644
+--- a/protoc-c/c_message_field.cc
++++ b/protoc-c/c_message_field.cc
+@@ -83,7 +83,7 @@ MessageFieldGenerator::~MessageFieldGenerator() {}
+ 
+ void MessageFieldGenerator::GenerateStructMembers(io::Printer* printer) const
+ {
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   vars["name"] = FieldName(descriptor_);
+   vars["type"] = FullNameToC(descriptor_->message_type()->full_name());
+   vars["deprecated"] = FieldDeprecated(descriptor_);
+@@ -98,7 +98,7 @@ void MessageFieldGenerator::GenerateStructMembers(io::Printer* printer) const
+       break;
+   }
+ }
+-string MessageFieldGenerator::GetDefaultValue(void) const
++std::string MessageFieldGenerator::GetDefaultValue(void) const
+ {
+   /* XXX: update when protobuf gets support
+    *   for default-values of message fields.
+@@ -119,7 +119,7 @@ void MessageFieldGenerator::GenerateStaticInit(io::Printer* printer) const
+ }
+ void MessageFieldGenerator::GenerateDescriptorInitializer(io::Printer* printer) const
+ {
+-  string addr = "&" + FullNameToLower(descriptor_->message_type()->full_name()) + "__descriptor";
++  std::string addr = "&" + FullNameToLower(descriptor_->message_type()->full_name()) + "__descriptor";
+   GenerateDescriptorInitializerGeneric(printer, false, "MESSAGE", addr);
+ }
+ 
+diff --git a/protoc-c/c_message_field.h b/protoc-c/c_message_field.h
+index b059fb0..39b8d99 100644
+--- a/protoc-c/c_message_field.h
++++ b/protoc-c/c_message_field.h
+@@ -80,7 +80,7 @@ class MessageFieldGenerator : public FieldGenerator {
+   // implements FieldGenerator ---------------------------------------
+   void GenerateStructMembers(io::Printer* printer) const;
+   void GenerateDescriptorInitializer(io::Printer* printer) const;
+-  string GetDefaultValue(void) const;
++  std::string GetDefaultValue(void) const;
+   void GenerateStaticInit(io::Printer* printer) const;
+ 
+  private:
+diff --git a/protoc-c/c_primitive_field.cc b/protoc-c/c_primitive_field.cc
+index dfbc47c..6990893 100644
+--- a/protoc-c/c_primitive_field.cc
++++ b/protoc-c/c_primitive_field.cc
+@@ -79,8 +79,8 @@ PrimitiveFieldGenerator::~PrimitiveFieldGenerator() {}
+ 
+ void PrimitiveFieldGenerator::GenerateStructMembers(io::Printer* printer) const
+ {
+-  string c_type;
+-  std::map<string, string> vars;
++  std::string c_type;
++  std::map<std::string, std::string> vars;
+   switch (descriptor_->type()) {
+     case FieldDescriptor::TYPE_SINT32  : 
+     case FieldDescriptor::TYPE_SFIXED32: 
+@@ -123,7 +123,7 @@ void PrimitiveFieldGenerator::GenerateStructMembers(io::Printer* printer) const
+       break;
+   }
+ }
+-string PrimitiveFieldGenerator::GetDefaultValue() const
++std::string PrimitiveFieldGenerator::GetDefaultValue() const
+ {
+   /* XXX: SimpleItoa seems woefully inadequate for anything but int32,
+    * but that's what protobuf uses. */
+@@ -149,7 +149,7 @@ string PrimitiveFieldGenerator::GetDefaultValue() const
+ }
+ void PrimitiveFieldGenerator::GenerateStaticInit(io::Printer* printer) const
+ {
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   if (descriptor_->has_default_value()) {
+     vars["default_value"] = GetDefaultValue();
+   } else {
+@@ -172,7 +172,7 @@ void PrimitiveFieldGenerator::GenerateStaticInit(io::Printer* printer) const
+ 
+ void PrimitiveFieldGenerator::GenerateDescriptorInitializer(io::Printer* printer) const
+ {
+-  string c_type_macro;
++  std::string c_type_macro;
+   switch (descriptor_->type()) {
+   #define WRITE_CASE(shortname) case FieldDescriptor::TYPE_##shortname: c_type_macro = #shortname; break;
+     WRITE_CASE(INT32)
+diff --git a/protoc-c/c_primitive_field.h b/protoc-c/c_primitive_field.h
+index 5ff254c..a9eb893 100644
+--- a/protoc-c/c_primitive_field.h
++++ b/protoc-c/c_primitive_field.h
+@@ -80,7 +80,7 @@ class PrimitiveFieldGenerator : public FieldGenerator {
+   // implements FieldGenerator ---------------------------------------
+   void GenerateStructMembers(io::Printer* printer) const;
+   void GenerateDescriptorInitializer(io::Printer* printer) const;
+-  string GetDefaultValue(void) const;
++  std::string GetDefaultValue(void) const;
+   void GenerateStaticInit(io::Printer* printer) const;
+ 
+  private:
+diff --git a/protoc-c/c_service.cc b/protoc-c/c_service.cc
+index ad09ff1..0b87f39 100644
+--- a/protoc-c/c_service.cc
++++ b/protoc-c/c_service.cc
+@@ -70,7 +70,7 @@ namespace compiler {
+ namespace c {
+ 
+ ServiceGenerator::ServiceGenerator(const ServiceDescriptor* descriptor,
+-                                   const string& dllexport_decl)
++                                   const std::string& dllexport_decl)
+   : descriptor_(descriptor) {
+   vars_["name"] = descriptor_->name();
+   vars_["fullname"] = descriptor_->full_name();
+@@ -104,7 +104,7 @@ void ServiceGenerator::GenerateVfuncs(io::Printer* printer)
+ 		 "  ProtobufCService base;\n");
+   for (int i = 0; i < descriptor_->method_count(); i++) {
+     const MethodDescriptor *method = descriptor_->method(i);
+-    string lcname = CamelToLower(method->name());
++    std::string lcname = CamelToLower(method->name());
+     vars_["method"] = lcname;
+     vars_["metpad"] = ConvertToSpaces(lcname);
+     vars_["input_typename"] = FullNameToC(method->input_type()->full_name());
+@@ -131,7 +131,7 @@ void ServiceGenerator::GenerateInitMacros(io::Printer* printer)
+ 		 "    { $ucfullname$__BASE_INIT");
+   for (int i = 0; i < descriptor_->method_count(); i++) {
+     const MethodDescriptor *method = descriptor_->method(i);
+-    string lcname = CamelToLower(method->name());
++    std::string lcname = CamelToLower(method->name());
+     vars_["method"] = lcname;
+     vars_["metpad"] = ConvertToSpaces(lcname);
+     printer->Print(vars_,
+@@ -144,8 +144,8 @@ void ServiceGenerator::GenerateCallersDeclarations(io::Printer* printer)
+ {
+   for (int i = 0; i < descriptor_->method_count(); i++) {
+     const MethodDescriptor *method = descriptor_->method(i);
+-    string lcname = CamelToLower(method->name());
+-    string lcfullname = FullNameToLower(descriptor_->full_name());
++    std::string lcname = CamelToLower(method->name());
++    std::string lcfullname = FullNameToLower(descriptor_->full_name());
+     vars_["method"] = lcname;
+     vars_["metpad"] = ConvertToSpaces(lcname);
+     vars_["input_typename"] = FullNameToC(method->input_type()->full_name());
+@@ -266,8 +266,8 @@ void ServiceGenerator::GenerateCallersImplementations(io::Printer* printer)
+ {
+   for (int i = 0; i < descriptor_->method_count(); i++) {
+     const MethodDescriptor *method = descriptor_->method(i);
+-    string lcname = CamelToLower(method->name());
+-    string lcfullname = FullNameToLower(descriptor_->full_name());
++    std::string lcname = CamelToLower(method->name());
++    std::string lcfullname = FullNameToLower(descriptor_->full_name());
+     vars_["method"] = lcname;
+     vars_["metpad"] = ConvertToSpaces(lcname);
+     vars_["input_typename"] = FullNameToC(method->input_type()->full_name());
+diff --git a/protoc-c/c_service.h b/protoc-c/c_service.h
+index 6f1798c..27125a6 100644
+--- a/protoc-c/c_service.h
++++ b/protoc-c/c_service.h
+@@ -82,7 +82,7 @@ class ServiceGenerator {
+  public:
+   // See generator.cc for the meaning of dllexport_decl.
+   explicit ServiceGenerator(const ServiceDescriptor* descriptor,
+-                            const string& dllexport_decl);
++                            const std::string& dllexport_decl);
+   ~ServiceGenerator();
+ 
+   // Header stuff.
+@@ -99,7 +99,7 @@ class ServiceGenerator {
+   void GenerateCallersImplementations(io::Printer* printer);
+ 
+   const ServiceDescriptor* descriptor_;
+-  std::map<string, string> vars_;
++  std::map<std::string, std::string> vars_;
+ 
+   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ServiceGenerator);
+ };
+diff --git a/protoc-c/c_string_field.cc b/protoc-c/c_string_field.cc
+index 2ed448b..f3ee837 100644
+--- a/protoc-c/c_string_field.cc
++++ b/protoc-c/c_string_field.cc
+@@ -74,7 +74,7 @@ namespace c {
+ using internal::WireFormat;
+ 
+ void SetStringVariables(const FieldDescriptor* descriptor,
+-                        std::map<string, string>* variables) {
++                        std::map<std::string, std::string>* variables) {
+   (*variables)["name"] = FieldName(descriptor);
+   (*variables)["default"] = FullNameToLower(descriptor->full_name())
+ 	+ "__default_value";
+@@ -110,19 +110,19 @@ void StringFieldGenerator::GenerateDefaultValueDeclarations(io::Printer* printer
+ }
+ void StringFieldGenerator::GenerateDefaultValueImplementations(io::Printer* printer) const
+ {
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   vars["default"] = variables_.find("default")->second;
+   vars["escaped"] = CEscape(descriptor_->default_value_string());
+   printer->Print(vars, "char $default$[] = \"$escaped$\";\n");
+ }
+ 
+-string StringFieldGenerator::GetDefaultValue(void) const
++std::string StringFieldGenerator::GetDefaultValue(void) const
+ {
+   return variables_.find("default")->second;
+ }
+ void StringFieldGenerator::GenerateStaticInit(io::Printer* printer) const
+ {
+-  std::map<string, string> vars;
++  std::map<std::string, std::string> vars;
+   if (descriptor_->has_default_value()) {
+     vars["default"] = GetDefaultValue();
+   } else if (FieldSyntax(descriptor_) == 2) {
+diff --git a/protoc-c/c_string_field.h b/protoc-c/c_string_field.h
+index 68f0d25..513cea7 100644
+--- a/protoc-c/c_string_field.h
++++ b/protoc-c/c_string_field.h
+@@ -82,11 +82,11 @@ class StringFieldGenerator : public FieldGenerator {
+   void GenerateDescriptorInitializer(io::Printer* printer) const;
+   void GenerateDefaultValueDeclarations(io::Printer* printer) const;
+   void GenerateDefaultValueImplementations(io::Printer* printer) const;
+-  string GetDefaultValue(void) const;
++  std::string GetDefaultValue(void) const;
+   void GenerateStaticInit(io::Printer* printer) const;
+ 
+  private:
+-  std::map<string, string> variables_;
++  std::map<std::string, std::string> variables_;
+ 
+   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(StringFieldGenerator);
+ };
