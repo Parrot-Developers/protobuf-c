@@ -49,7 +49,7 @@ LOCAL_EXPORT_C_INCLUDES := $(call local-get-build-dir)/gen
 
 # Can not use find here, files may not be present yet in staging directory
 google_proto_path := $(TARGET_OUT_STAGING)/usr/share/protobuf/google/protobuf
-google_proto_files := $(addprefix $(google_proto_path)/,any.proto empty.proto wrappers.proto descriptor.proto)
+google_proto_files := $(addprefix $(google_proto_path)/,any.proto empty.proto wrappers.proto descriptor.proto struct.proto)
 $(google_proto_files): $(call module-get-stamp-file,protobuf-base,done)
 
 $(foreach __f,$(google_proto_files), \
